@@ -17,6 +17,7 @@ struct MulCompute {
     input: Vec<char>,
     state: FindOp,
     sum: i32,
+    conditional: bool,
 }
 
 impl MulCompute {
@@ -25,10 +26,11 @@ impl MulCompute {
             input,
             state: FindOp::BeginOp,
             sum: 0,
+            conditional: true,
         }
     }
 
-    fn compute(mut self) -> i32 {
+    fn compute(mut self, apply_conditionnal: bool) -> i32 {
         let mut input = self.input.iter();
         loop {
             if input.len() == 0 {
@@ -36,10 +38,18 @@ impl MulCompute {
             }
             match self.state {
                 FindOp::BeginOp => {
-                    // Find the next `mul(number`
-                    if input.as_slice().starts_with(&['m', 'u', 'l', '(']) {
+                    if input
+                        .as_slice()
+                        .starts_with(&['d', 'o', 'n', '\'', 't', '(', ')'])
+                    {
+                        self.conditional = false;
+                        input.nth(6);
+                    } else if input.as_slice().starts_with(&['d', 'o', '(', ')']) {
+                        self.conditional = true;
                         input.nth(3);
-                        self.state = FindOp::FirstNumber;
+                    } else if input.as_slice().starts_with(&['m', 'u', 'l', '(']) {
+                        input.nth(3);
+                        self.state = FindOp::FirstNumber
                     } else {
                         input.next();
                     }
@@ -56,7 +66,6 @@ impl MulCompute {
                         }
                     }
                     if let Ok(first_number) = number_str.parse::<i32>() {
-                        println!("First number: {}", number_str);
                         self.state = FindOp::Separator(first_number);
                     } else {
                         self.state = FindOp::BeginOp;
@@ -85,7 +94,6 @@ impl MulCompute {
                         }
                     }
                     if let Ok(second_number) = number_str.parse::<i32>() {
-                        println!("second_number: {}", number_str);
                         self.state = FindOp::CloseOp(first_number, second_number);
                     } else {
                         self.state = FindOp::BeginOp;
@@ -95,7 +103,11 @@ impl MulCompute {
                     if let Some(&')') = input.clone().peekable().peek() {
                         // Consume the closing parenthesis
                         input.next();
-                        self.sum += first_number * second_number;
+                        if !apply_conditionnal {
+                            self.sum += first_number * second_number;
+                        } else if apply_conditionnal && self.conditional {
+                            self.sum += first_number * second_number;
+                        }
                     }
                     self.state = FindOp::BeginOp;
                 }
@@ -108,7 +120,8 @@ impl MulCompute {
 pub fn solve() {
     let content = get_content();
 
-    let parser = MulCompute::new(content);
-    let sum = parser.compute();
-    println!("Response: {}", sum);
+    let sum = MulCompute::new(content.clone()).compute(false);
+    println!("Response part 1: {}", sum);
+    let sum = MulCompute::new(content).compute(true);
+    println!("Response part 2: {}", sum);
 }
