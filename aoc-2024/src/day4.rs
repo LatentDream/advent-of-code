@@ -9,8 +9,12 @@ fn get_input() -> Vec<Vec<char>> {
         .collect()
 }
 
-fn eq_xmax(input: &String) -> bool {
+fn eq_xmax(input: String) -> bool {
     input.eq("XMAS")
+}
+
+fn eq_max(input: String) -> bool {
+    input.eq("MAS") || input.eq("SAM")
 }
 
 fn get_string_in_direction(
@@ -36,6 +40,30 @@ fn get_string_in_direction(
     Some(String::from_iter(accumulator))
 }
 
+fn get_strings_in_diago_from_center(
+    puzzle: &Vec<Vec<char>>,
+    i: usize,
+    j: usize,
+) -> Option<(String, String)> {
+    if i < 1 || i >= puzzle.len() - 1 || j < 1 || j >= puzzle[0].len() - 1 {
+        return None;
+    }
+    let diag1 = format!(
+        "{}{}{}",
+        puzzle[i - 1][j - 1],
+        puzzle[i][j],
+        puzzle[i + 1][j + 1]
+    );
+    let diag2 = format!(
+        "{}{}{}",
+        puzzle[i - 1][j + 1],
+        puzzle[i][j],
+        puzzle[i + 1][j - 1]
+    );
+
+    Some((diag1, diag2))
+}
+
 pub fn solve() {
     let puzzle = get_input();
 
@@ -50,21 +78,36 @@ pub fn solve() {
         ((-1, 1), "Down"),  // Right-Down
     ];
 
-    let mut total_found = 0;
+    let mut total_found_part_1 = 0;
 
     for (i, row) in puzzle.iter().enumerate() {
         for (j, &ch) in row.iter().enumerate() {
             if ch == 'X' {
-                for ((di, dj), name) in directions.iter() {
+                for ((di, dj), _name) in directions.iter() {
                     if let Some(string) = get_string_in_direction(&puzzle, i, j, (*di, *dj)) {
-                        // println!("{}: {}", name, string);
-                        if eq_xmax(&string) {
-                            total_found += 1;
+                        if eq_xmax(string) {
+                            total_found_part_1 += 1;
                         }
                     }
                 }
             }
         }
     }
-    println!("Part 1: {}", total_found);
+
+    println!("Part 1: {}", total_found_part_1);
+
+    let mut total_found_part_2 = 0;
+    for (i, row) in puzzle.iter().enumerate() {
+        for (j, &ch) in row.iter().enumerate() {
+            if ch == 'A' {
+                if let Some((diag1, diag2)) = get_strings_in_diago_from_center(&puzzle, i, j) {
+                    if eq_max(diag1) && eq_max(diag2) {
+                        total_found_part_2 += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    println!("Part 1: {}", total_found_part_2);
 }
