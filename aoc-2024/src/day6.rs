@@ -1,6 +1,6 @@
-use std::{collections::HashSet, error::Error, fs, hash::{Hash, Hasher}, usize};
+use std::{collections::{HashMap, HashSet}, error::Error, fs, hash::{Hash, Hasher}, usize};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum Direction {
     UP,
     DOWN,
@@ -53,8 +53,7 @@ impl Hash for Coord {
 struct Guard {
     pub coord: Coord,
     pub direction: Direction,
-    pub coord_visited: HashSet<Coord>,
-    pub coord_where_already_turn: HashSet<Coord>
+    pub coord_visited: HashMap<Coord, Direction>,
 }
 
 impl Guard {
@@ -62,8 +61,7 @@ impl Guard {
         Guard {
             coord: Coord { x: i, y: j },
             direction,
-            coord_visited: HashSet::new(),
-            coord_where_already_turn: HashSet::new()
+            coord_visited: HashMap::new(),
         }
     }
 
@@ -77,18 +75,19 @@ impl Guard {
     }
 
     pub fn patrol(&mut self, obstacles: &HashSet<Coord>) -> Result<(), GameOver> {
-        if self.coord_where_already_turn.contains(&self.coord) {
-            return Err(GameOver::new(GameOverReason::GuardStuck));
-        }
         loop {
             let next_coord = self.coord.move_in_direction(&self.direction).ok_or(GameOver::new(GameOverReason::OutOfBounds))?;
             if obstacles.contains(&next_coord) {
                 self.turn();
-                self.coord_where_already_turn.insert(self.coord.clone());
                 continue;
             }
+            if let Some(visited) = self.coord_visited.get(&next_coord) {
+                if *visited == self.direction {
+                    return Err(GameOver::new(GameOverReason::GuardStuck));
+                }
+            }
             self.coord = next_coord.clone();
-            self.coord_visited.insert(next_coord);
+            self.coord_visited.insert(next_coord, self.direction.clone());
             break;
         }
         Ok(())
@@ -176,7 +175,7 @@ impl Map {
                 let coord = Coord { x, y };
                 if coord == self.guard.coord {
                     print!("{}", self.guard_char());
-                } else if self.guard.coord_visited.contains(&coord) {
+                } else if self.guard.coord_visited.contains_key(&coord) {
                     print!("x");
                 } else if self.obstacles.contains(&coord) {
                     print!("#");
@@ -232,15 +231,13 @@ pub fn solve() {
             let new_obstacle = Coord { x: i, y: j};
             if new_map.guard.coord == new_obstacle { continue; }
             if new_map.obstacles.contains(&new_obstacle) { continue; }
-            if !map_part1.guard.coord_visited.contains(&new_obstacle) { continue; }
+            if !map_part1.guard.coord_visited.contains_key(&new_obstacle) { continue; }
             new_map.obstacles.insert(new_obstacle);
-            new_map.render(0);
             loop {
                 if let Err(game_over) = new_map.update() {
                     match game_over.reason {
                             GameOverReason::GuardStuck => {
                             number_of_possibility += 1;
-                            println!("is stuck");
                         }, 
                         _ => {}
                     }
