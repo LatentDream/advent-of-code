@@ -1,5 +1,6 @@
 use std::{collections::HashSet, error::Error, fs, hash::{Hash, Hasher}, usize};
 
+#[derive(Clone)]
 enum Direction {
     UP,
     DOWN,
@@ -18,7 +19,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Coord {
     x: usize,
     y: usize,
@@ -48,10 +49,12 @@ impl Hash for Coord {
     }
 }
 
+#[derive(Clone)]
 struct Guard {
     pub coord: Coord,
     pub direction: Direction,
-    pub coord_visited: HashSet<Coord>
+    pub coord_visited: HashSet<Coord>,
+    pub coord_where_already_turn: HashSet<Coord>
 }
 
 impl Guard {
@@ -59,7 +62,8 @@ impl Guard {
         Guard {
             coord: Coord { x: i, y: j },
             direction,
-            coord_visited: HashSet::new()
+            coord_visited: HashSet::new(),
+            coord_where_already_turn: HashSet::new()
         }
     }
 
@@ -72,11 +76,15 @@ impl Guard {
         }
     }
 
-    pub fn patrol(&mut self, obstacles: &[Coord]) -> Result<(), GameOver> {
+    pub fn patrol(&mut self, obstacles: &HashSet<Coord>) -> Result<(), GameOver> {
+        if self.coord_where_already_turn.contains(&self.coord) {
+            return Err(GameOver::new(GameOverReason::GuardStuck));
+        }
         loop {
-            let next_coord = self.coord.move_in_direction(&self.direction).ok_or(GameOver)?;
+            let next_coord = self.coord.move_in_direction(&self.direction).ok_or(GameOver::new(GameOverReason::OutOfBounds))?;
             if obstacles.contains(&next_coord) {
                 self.turn();
+                self.coord_where_already_turn.insert(self.coord.clone());
                 continue;
             }
             self.coord = next_coord.clone();
@@ -87,15 +95,27 @@ impl Guard {
     }
 }
 
+#[derive(Clone)]
 struct Map {
-    pub obstacle: Vec<Coord>,
+    pub obstacles: HashSet<Coord>,
     pub guard: Guard,
     pub map_size: (usize, usize)
 }
 
-// Top the dedication pour avoir le GameOver state Lol
+
+// Too much dedication pour avoir le GameOver state Lol
 #[derive(Debug)]
-pub struct GameOver;
+pub enum GameOverReason {
+    OutOfBounds,
+    GuardStuck,
+}
+#[derive(Debug)]
+pub struct GameOver { reason: GameOverReason }
+impl GameOver {
+    pub fn new(reason: GameOverReason) -> Self {
+        GameOver { reason }
+    }
+}
 impl std::fmt::Display for GameOver {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Game Over!")
@@ -111,13 +131,13 @@ fn read_map() -> Map {
         .map(|l| l.chars().collect())
         .collect();
 
-    let mut obstacle = Vec::new();
+    let mut obstacles = HashSet::new();
     let mut guard: Option<Guard> = None;
 
     for (j, row) in location.iter().enumerate() {
         for (i, map_el) in row.iter().enumerate() {
             match *map_el {
-                '#' => obstacle.push(Coord { x: i, y: j }),
+                '#' => { obstacles.insert(Coord { x: i, y: j }); },
                 '^' => { guard = Some(Guard::new(i, j, Direction::UP)); },
                 '>' => { guard = Some(Guard::new(i, j, Direction::RIGHT)); },
                 'v' => { guard = Some(Guard::new(i, j, Direction::DOWN)); },
@@ -128,7 +148,7 @@ fn read_map() -> Map {
     }
 
     Map {
-        obstacle,
+        obstacles,
         guard: guard.expect("to a have guard in the map"),
         map_size: (location[0].len(), location.len()) 
     }
@@ -138,17 +158,18 @@ fn read_map() -> Map {
 impl Map {
 
     pub fn update(&mut self) -> Result<(), GameOver> {
-        self.guard.patrol(&self.obstacle)?;
+        self.guard.patrol(&self.obstacles)?;
         if self.guard.coord.x >= self.map_size.0 {
-            return Err(GameOver)
+            return Err(GameOver::new(GameOverReason::OutOfBounds))
         }
         if self.guard.coord.y >= self.map_size.1 {
-            return Err(GameOver)
+            return Err(GameOver::new(GameOverReason::OutOfBounds))
         }
         Ok(())
     }
 
-    pub fn render(&self) {
+    pub fn render(&self, tick: u64) {
+        println!("Time: {}", tick);
         let (width, height) = self.map_size;
         for y in 0..height {
             for x in 0..width {
@@ -157,7 +178,7 @@ impl Map {
                     print!("{}", self.guard_char());
                 } else if self.guard.coord_visited.contains(&coord) {
                     print!("x");
-                } else if self.obstacle.contains(&coord) {
+                } else if self.obstacles.contains(&coord) {
                     print!("#");
                 } else {
                     print!(".");
@@ -165,6 +186,7 @@ impl Map {
             }
             println!();
         }
+        println!();
     }
 
     fn guard_char(&self) -> char {
@@ -178,19 +200,18 @@ impl Map {
 
 }
 
-const RENDER: bool = true;
+const RENDER: bool = false;
 
 pub fn solve() {
     let mut map = read_map();
 
+    // Part 1
     let mut time: u64 = 0;
     loop {
-        println!("Time: {}", time);
         if RENDER {
-            map.render();
+            map.render(time);
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        println!();
 
         time += 1;
         if let Err(game_over) = map.update() {
@@ -201,4 +222,30 @@ pub fn solve() {
     }
 
     println!("Part 1: {}", map.guard.coord_visited.len() - 1);
+
+    // Part 2: Let's no be cleaver, and try all solution ahaha
+    let map = read_map();
+    let mut number_of_possibility = 0;
+    for i in 0..map.map_size.0 {
+        for j in 0..map.map_size.0 {
+            let mut new_map = map.clone();
+            let new_obstacle = Coord { x: i, y: j};
+            if new_map.guard.coord == new_obstacle { continue; }
+            if new_map.obstacles.contains(&new_obstacle) { continue; }
+            new_map.obstacles.insert(new_obstacle);
+            loop {
+                if let Err(game_over) = new_map.update() {
+                    match game_over.reason {
+                            GameOverReason::GuardStuck => {
+                            number_of_possibility += 1;
+                        }, 
+                        _ => {}
+                    }
+                    break;
+                }
+            }
+
+        }
+    }
+    println!("Part 2 {}", number_of_possibility);
 }
