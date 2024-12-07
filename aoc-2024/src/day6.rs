@@ -203,25 +203,25 @@ impl Map {
 const RENDER: bool = false;
 
 pub fn solve() {
-    let mut map = read_map();
+    let mut map_part1 = read_map();
 
     // Part 1
     let mut time: u64 = 0;
     loop {
         if RENDER {
-            map.render(time);
+            map_part1.render(time);
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
         time += 1;
-        if let Err(game_over) = map.update() {
+        if let Err(game_over) = map_part1.update() {
             println!("Game Over: {}", game_over);
             break;
         }
 
     }
 
-    println!("Part 1: {}", map.guard.coord_visited.len() - 1);
+    println!("Part 1: {}", map_part1.guard.coord_visited.len() - 1);
 
     // Part 2: Let's no be cleaver, and try all solution ahaha
     let map = read_map();
@@ -232,12 +232,15 @@ pub fn solve() {
             let new_obstacle = Coord { x: i, y: j};
             if new_map.guard.coord == new_obstacle { continue; }
             if new_map.obstacles.contains(&new_obstacle) { continue; }
+            if !map_part1.guard.coord_visited.contains(&new_obstacle) { continue; }
             new_map.obstacles.insert(new_obstacle);
+            new_map.render(0);
             loop {
                 if let Err(game_over) = new_map.update() {
                     match game_over.reason {
                             GameOverReason::GuardStuck => {
                             number_of_possibility += 1;
+                            println!("is stuck");
                         }, 
                         _ => {}
                     }
