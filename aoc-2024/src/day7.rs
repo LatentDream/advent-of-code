@@ -1,21 +1,21 @@
 use std::fs;
 
-fn read_input() -> Vec<(i64, Vec<i64>)> {
+fn read_input() -> Vec<(u64, Vec<u64>)> {
     let content = fs::read_to_string("input.txt").expect("The file to open");
 
-    let problem_inputs: Vec<(i64, Vec<i64>)> = content
+    let problem_inputs: Vec<(u64, Vec<u64>)> = content
         .split("\n")
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let mut splited_line = line.split(":");
             (
-                splited_line.next().unwrap().parse::<i64>().unwrap(),
+                splited_line.next().unwrap().parse::<u64>().unwrap(),
                 splited_line
                     .next()
                     .unwrap()
                     .split(" ")
                     .filter(|s| !s.is_empty())
-                    .map(|e| e.parse::<i64>().unwrap())
+                    .map(|e| e.parse::<u64>().unwrap())
                     .collect(),
             )
         })
@@ -24,29 +24,40 @@ fn read_input() -> Vec<(i64, Vec<i64>)> {
     problem_inputs
 }
 
-fn could_be_true(target: i64, inputs: Vec<i64>) -> bool {
-    fn compute(target: i64, sum: i64, inputs: &[i64]) -> bool {
-        if sum == target {
-            return true;
-        }
-        if inputs.len() == 0 || sum > target {
-            return false;
-        }
+type Operator = fn(u64, u64) -> u64;
 
-        compute(target, sum + inputs[0], &inputs[1..])
-            || compute(target, sum * inputs[0], &inputs[1..])
+fn recursive_compute(target: u64, sum: u64, inputs: &[u64], operators: &[Operator]) -> bool {
+    if inputs.is_empty() {
+        return sum == target;
     }
+    operators.iter().any(
+        |op| recursive_compute(target, op(sum, inputs[0]), &inputs[1..], operators)
+    )
+}
 
-    return compute(target, inputs[0], &inputs[1..]);
+fn evaluate(inputs: &Vec<(u64, Vec<u64>)>, operators: &[Operator]) -> u64 {
+    let mut total = 0;
+    for (target, inputs) in inputs {
+        if recursive_compute(*target, inputs[0], &inputs[1..], &operators) {
+            total += target;
+        }
+    }
+    total
 }
 
 pub fn solve() {
     let inputs = read_input();
+    let operators: Vec<Operator> = vec![
+        |a, b| a + b,
+        |a, b| a * b,
+    ];
+    println!("Part 1: {}", evaluate(&inputs, &operators));
 
-    let mut total = 0;
-    for (target, inputs) in inputs {
-        if could_be_true(target, inputs) {
-            total += target;
-        }
-    }
+
+    let operators: Vec<Operator> = vec![
+        |a, b| a + b,
+        |a, b| a * b,
+        |a, b| format!("{}{}",a, b).parse::<u64>().unwrap()
+    ];
+    println!("Part 2: {}", evaluate(&inputs, &operators));
 }
