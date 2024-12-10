@@ -18,6 +18,20 @@ impl fmt::Display for Disk {
     }
 }
 
+fn find_contiguous_range(slice: &[Option<i32>], target: i32) -> (usize, usize) {
+    return slice
+        .iter()
+        .rposition(|&x| x == Some(target))
+        .map(|f_end| {
+            let mut f_start = f_end;
+            while f_start > 0 && slice[f_start - 1] == Some(target) {
+                f_start -= 1;
+            }
+            (f_start, f_end)
+        })
+        .expect("The file to exist");
+}
+
 impl Disk {
     fn new(input: &String) -> Self {
         let storage = input
@@ -36,7 +50,7 @@ impl Disk {
             .collect();
         Disk {
             storage,
-            nb_file: (input.len() / 2) as u32,
+            nb_file: (input.len() / 2) as u32 - 1,
         }
     }
 
@@ -58,46 +72,24 @@ impl Disk {
     }
 
     fn compress_in_contiguous(&mut self) {
-        let mut nb_file_to_check_remaining = self.nb_file;
-        let mut compressed_storage = self.storage.clone();
-        let mut f_end = self.storage.iter().rposition(|&x| x.is_some()).unwrap_or(0);
-        let mut f_start = f_end;
-        let target_file = self.storage[f_end].unwrap();
-        while f_start > 0 && self.storage[f_start - 1] == Some(target_file) {
-            f_start -= 1;
-        }
-        loop {
-            let file_len = f_end - f_start + 1;
+        for target_file in (1..=self.nb_file).rev() {
+            let (f_start, f_end) = find_contiguous_range(&self.storage, target_file as i32);
+            let len = f_end - f_start + 1;
 
-            let insert_at = compressed_storage
-                .windows(file_len)
+            // Find insert position
+            let insert_at = self
+                .storage
+                .windows(len)
                 .position(|window| window.iter().all(|&x| x.is_none()))
-                .unwrap_or(compressed_storage.len());
+                .unwrap_or(self.storage.len());
 
-            // Swap
-            if insert_at + file_len <= f_start {
-                compressed_storage[insert_at..insert_at + file_len]
-                    .copy_from_slice(&self.storage[f_start..=f_end]);
-
-                compressed_storage[f_start..=f_end]
-                    .iter_mut()
-                    .for_each(|x| *x = None);
-            }
-
-            // Find next file
-            nb_file_to_check_remaining -= 1;
-            if nb_file_to_check_remaining > 0 {
-                f_end = self.storage[..f_start].iter().rposition(|&x| x.is_some()).unwrap_or(0);
-                f_start = f_end;
-                let target_file = self.storage[f_end].unwrap();
-                while f_start > 0 && self.storage[f_start - 1] == Some(target_file) {
-                    f_start -= 1;
+            // Swap if it's a compression
+            if insert_at + len <= f_start {
+                for i in 0..len {
+                    self.storage.swap(insert_at + i, f_start + i);
                 }
-            } else {
-                break;
             }
         }
-        self.storage = compressed_storage;
     }
 
     fn checksum(&self) -> i64 {
