@@ -18,7 +18,7 @@ impl fmt::Display for Disk {
     }
 }
 
-fn find_contiguous_range(slice: &[Option<i32>], target: i32) -> (usize, usize) {
+fn find_file_loc(slice: &[Option<i32>], target: i32) -> (usize, usize) {
     return slice
         .iter()
         .rposition(|&x| x == Some(target))
@@ -73,7 +73,7 @@ impl Disk {
 
     fn compress_in_contiguous(&mut self) {
         for target_file in (1..=self.nb_file).rev() {
-            let (f_start, f_end) = find_contiguous_range(&self.storage, target_file as i32);
+            let (f_start, f_end) = find_file_loc(&self.storage, target_file as i32);
             let len = f_end - f_start + 1;
 
             // Find insert position
