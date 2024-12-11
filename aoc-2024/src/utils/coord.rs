@@ -20,6 +20,17 @@ impl Coord {
             y: y.try_into().unwrap(),
         }
     }
+
+    /// Returns a vector of adjacent coordinates in the order: up, right, down, left
+    pub fn adjacents(&self) -> Vec<Coord> {
+        vec![
+            Coord { x: self.x, y: self.y - 1 }, // up
+            Coord { x: self.x + 1, y: self.y }, // right
+            Coord { x: self.x, y: self.y + 1 }, // down
+            Coord { x: self.x - 1, y: self.y }, // left
+        ]
+    }
+
 }
 
 impl PartialEq for Coord {
