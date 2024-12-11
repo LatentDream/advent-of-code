@@ -47,7 +47,7 @@ impl Map {
         self.topography.get_at(coord).copied().unwrap_or(-1)
     }
 
-    fn find_number_trail(self) -> u32 {
+    fn find_number_peak(self) -> u32 {
         let (x_max, y_max) = self.topography.get_dimensions();
         let mut accessibility_sets = Grid::create_empty(x_max, y_max, HashSet::new());
 
@@ -61,7 +61,6 @@ impl Map {
         let mut visited = HashSet::new();
 
         while let Some(current) = queue.pop_front() {
-            // Get the set of peaks accessible from current position
             let current_peaks = accessibility_sets.get_at(&current).unwrap().clone();
 
             for adjacent in current.adjacents() {
@@ -99,6 +98,40 @@ impl Map {
             .sum()
     }
 
+    fn find_number_trail(self) -> u32 {
+        let (x_max, y_max) = self.topography.get_dimensions();
+        let mut accessibility_count = Grid::<u32>::create_empty(x_max, y_max, 0);
+
+        for peak in &self.peaks {
+            accessibility_count.set_at(peak, 1);
+        }
+
+        let mut queue = VecDeque::from(self.peaks.clone());
+        let mut visited = HashSet::new();
+
+        while let Some(current) = queue.pop_front() {
+            let current_count = *accessibility_count.get_at(&current).unwrap();
+
+            for adjacent in current.adjacents() {
+                if let Some(adj_height) = self.get_valid_height(&adjacent) {
+                    if self.get_height(&current) - 1 == adj_height {
+                        let adj_count = accessibility_count.get_at(&adjacent).unwrap_or(&0);
+                        accessibility_count.set_at(&adjacent, adj_count + current_count);
+
+                        if visited.insert(adjacent.clone()) {
+                            queue.push_back(adjacent);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.starts
+            .iter()
+            .map(|start| accessibility_count.get_at(start).unwrap_or(&0))
+            .sum()
+    }
+
     fn get_valid_height(&self, pos: &Coord) -> Option<i32> {
         let height = self.get_height(pos);
         if height != -1 {
@@ -127,6 +160,9 @@ impl Map {
 pub fn solve() {
     let input = read_to_string("input.txt").expect("the file to open");
     let map = Map::new(&input);
+    let number_of_peak = map.find_number_peak();
+    println!("Part 1: {}", number_of_peak);
+    let map = Map::new(&input);
     let number_of_trail = map.find_number_trail();
-    println!("Part 1: {}", number_of_trail);
+    println!("Part 2: {}", number_of_trail);
 }
