@@ -47,7 +47,7 @@ impl Map {
         self.topography.get_at(coord).copied().unwrap_or(-1)
     }
 
-    fn find_number_peak(self) -> u32 {
+    fn find_number_peak(&self) -> u32 {
         let (x_max, y_max) = self.topography.get_dimensions();
         let mut accessibility_sets = Grid::create_empty(x_max, y_max, HashSet::new());
 
@@ -98,7 +98,7 @@ impl Map {
             .sum()
     }
 
-    fn find_number_trail(self) -> u32 {
+    fn find_number_trail(&self) -> u32 {
         let (x_max, y_max) = self.topography.get_dimensions();
         let mut accessibility_count = Grid::<u32>::create_empty(x_max, y_max, 0);
 
@@ -162,7 +162,6 @@ pub fn solve() {
     let map = Map::new(&input);
     let number_of_peak = map.find_number_peak();
     println!("Part 1: {}", number_of_peak);
-    let map = Map::new(&input);
     let number_of_trail = map.find_number_trail();
     println!("Part 2: {}", number_of_trail);
 }
