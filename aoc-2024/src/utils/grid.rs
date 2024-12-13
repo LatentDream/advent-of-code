@@ -1,7 +1,4 @@
-use core::panic;
-
 use super::Coord;
-
 pub type Grid<T> = Vec<Vec<T>>;
 
 // Grid utility functions
@@ -13,6 +10,7 @@ pub trait GridOps<T> {
     fn create_empty(rows: usize, cols: usize, default: T) -> Self
     where
         T: Clone;
+    fn iter_coords(&self) -> GridCoordIterator;
 }
 
 impl<T> GridOps<T> for Grid<T> {
@@ -48,7 +46,7 @@ impl<T> GridOps<T> for Grid<T> {
         {
             self[coord.y as usize][coord.x as usize] = value;
         } else {
-            panic!("Set At out of Pound");
+            panic!("Set At out of Bound");
         }
     }
 
@@ -57,5 +55,42 @@ impl<T> GridOps<T> for Grid<T> {
         T: Clone,
     {
         vec![vec![default; cols]; rows]
+    }
+
+    fn iter_coords(&self) -> GridCoordIterator {
+        let (rows, cols) = self.get_dimensions();
+        GridCoordIterator {
+            current_pos: Coord { x: 0, y: 0 },
+            dimensions: (rows, cols),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GridCoordIterator {
+    current_pos: Coord,
+    dimensions: (usize, usize),
+}
+
+impl Iterator for GridCoordIterator {
+    type Item = Coord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // If we've reached the end of the grid, return None
+        if self.current_pos.y as usize >= self.dimensions.0 {
+            return None;
+        }
+
+        // Store the current position to return
+        let current = self.current_pos.clone();
+
+        // Move to the next position
+        self.current_pos.x += 1;
+        if self.current_pos.x as usize >= self.dimensions.1 {
+            self.current_pos.x = 0;
+            self.current_pos.y += 1;
+        }
+
+        Some(current)
     }
 }
