@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Coord {
     pub x: i32,
     pub y: i32,
