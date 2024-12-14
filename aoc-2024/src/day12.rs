@@ -26,7 +26,7 @@ fn print_garden(garden: &Grid<char>, target: char) {
     println!();
 }
 
-fn quote(coord: Coord, garden: &mut Grid<char>, already_process: &mut HashSet<Coord>) -> i32 {
+fn quote(coord: Coord, garden: &Grid<char>, already_process: &mut HashSet<Coord>) -> i32 {
     if already_process.contains(&coord) {
         return 0;
     }
@@ -59,63 +59,61 @@ fn quote(coord: Coord, garden: &mut Grid<char>, already_process: &mut HashSet<Co
     area * perimeter
 }
 
-// Direction needed for:
-// LLL
-// LFL
-// LLX  <- This won't be count otherwise
-type SideInfo = (Coord, Direction);
+fn count_sides(coord: &Coord, garden: &Grid<char>, plant: char) -> i32 {
+    // Cound the number of sides, based on the number of corner
+    let moves = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+    let mut surrounding = Vec::new();
 
-fn is_new_side(
-    curr: &Coord,
-    next: &Coord,
-    side_horizontal: &mut HashSet<SideInfo>,
-    side_vertical: &mut HashSet<SideInfo>,
-) -> bool {
-    // Something wrong here :(
-    let direction = Direction::from_coords(curr, next).unwrap();
-    match direction {
-        Direction::LEFT | Direction::RIGHT => {
-            let new_side = match direction {
-                Direction::LEFT => next.clone(),
-                Direction::RIGHT => curr.clone(),
-                _ => unreachable!(),
-            };
-            let up = &new_side + &Direction::UP.delta();
-            let down = &new_side + &Direction::DOWN.delta();
-            side_vertical.insert((new_side.clone(), direction.clone()));
-            !(side_vertical.contains(&(up, direction.clone()))
-                || side_vertical.contains(&(down, direction)))
-        }
-        Direction::DOWN | Direction::UP => {
-            let new_side = match direction {
-                Direction::DOWN => curr.clone(),
-                Direction::UP => next.clone(),
-                _ => unreachable!(),
-            };
-            let left = &new_side + &Direction::LEFT.delta();
-            let right = &new_side + &Direction::RIGHT.delta();
-            side_horizontal.insert((new_side.clone(), direction.clone()));
-            !(side_horizontal.contains(&(left, direction.clone()))
-                || side_horizontal.contains(&(right, direction)))
+    for (dx, dy) in moves.iter() {
+        let next = Coord::new(coord.x + dx, coord.y + dy);
+        match garden.get_at(&next) {
+            Some(p) if *p == plant => surrounding.push(1),
+            _ => surrounding.push(0),
         }
     }
+
+    let num_outside = surrounding.iter().sum::<i32>();
+    let mut sides = 0;
+
+    if num_outside == 1 {
+        sides += 2; // Single connection point
+    } else if num_outside == 0 {
+        sides += 4; // Isolated cell
+    } else if num_outside == 2 && surrounding[0] != surrounding[2] {
+        sides += 1; // L-shaped corner
+    }
+
+    // Inner corners
+    for i in 0..4 {
+        let next_i = (i + 1) % 4;
+        if surrounding[i] == 1 && surrounding[next_i] == 1 {
+            let diagonal_x = coord.x + moves[i].0 + moves[next_i].0;
+            let diagonal_y = coord.y + moves[i].1 + moves[next_i].1;
+            let diagonal = Coord::new(diagonal_x, diagonal_y);
+
+            if let Some(p) = garden.get_at(&diagonal) {
+                if *p != plant {
+                    sides += 1;
+                }
+            }
+        }
+    }
+
+    sides
 }
 
 fn quote_with_discount(
     coord: Coord,
     garden: &Grid<char>,
     already_process: &mut HashSet<Coord>,
-    debug: &mut HashMap<char, i32>
 ) -> i32 {
     if already_process.contains(&coord) {
         return 0;
     }
+
     let plant = garden.get_at(&coord).expect("a plant");
     let mut queue = VecDeque::from(vec![coord]);
-    let (mut area, mut nb_side) = (0, 0);
-    // Update HashSet types to store SideInfo
-    let mut side_hzt: HashSet<SideInfo> = HashSet::new();
-    let mut side_vtl: HashSet<SideInfo> = HashSet::new();
+    let (mut area, mut total_sides) = (0, 0);
 
     while let Some(tile) = queue.pop_front() {
         if already_process.contains(&tile) {
@@ -123,53 +121,41 @@ fn quote_with_discount(
         }
         already_process.insert(tile.clone());
         area += 1;
+        total_sides += count_sides(&tile, garden, *plant);
+
         for tile_adj in tile.adjacents() {
-            match garden.get_at(&tile_adj) {
-                Some(plant_adj) if plant_adj == plant => {
-                    queue.push_back(tile_adj.clone());
-                }
-                _ => {
-                    nb_side += is_new_side(&tile, &tile_adj, &mut side_hzt, &mut side_vtl) as i32;
+            if let Some(plant_adj) = garden.get_at(&tile_adj) {
+                if plant_adj == plant {
+                    queue.push_back(tile_adj);
                 }
             }
         }
     }
-    debug.entry(*plant)
-        .and_modify(|e| *e += area * nb_side)
-        .or_insert(area * nb_side);
-    area * nb_side
+
+    area * total_sides
 }
 
 pub fn solve() {
     let input = read_to_string("input.txt").expect("the file to open");
+    let garden = build_garden(&input);
 
     // Part 1
-    let mut garden = build_garden(&input);
     let mut price = 0;
     let mut already_process: HashSet<Coord> = HashSet::new();
 
-    // Go over each path of the garden
+    // Go over each patch of the garden
     for coord in garden.iter_coords() {
-        price += quote(coord, &mut garden, &mut already_process);
+        price += quote(coord, &garden, &mut already_process);
     }
     println!(" Part 1: {}$\n", price);
 
     // Part 2
-    let mut debug: HashMap<char, i32> = HashMap::new();
-    let mut garden = build_garden(&input);
     let mut price = 0;
     let mut already_process: HashSet<Coord> = HashSet::new();
 
-    // Go over each path of the garden
+    // Go over each patch of the garden
     for coord in garden.iter_coords() {
-        price += quote_with_discount(coord, &mut garden, &mut already_process, &mut debug);
+        price += quote_with_discount(coord, &garden, &mut already_process);
     }
-    let mut sorted_debug: Vec<_> = debug.into_iter().collect();
-    sorted_debug.sort_by_key(|&(k, _)| k);
-    for (plant, value) in sorted_debug {
-        println!("{}: {}", plant, value);
-    }
-    print_garden(&garden, 'B');
-    println!(" Part 2: {}$", price);
     println!(" Part 2: {}$", price);
 }

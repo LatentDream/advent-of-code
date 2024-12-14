@@ -32,6 +32,15 @@ impl Direction {
             _ => None, // Return None for diagonal or non-adjacent coordinates
         }
     }
+
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::UP => Direction::DOWN,
+            Direction::DOWN => Direction::UP,
+            Direction::RIGHT => Direction::LEFT,
+            Direction::LEFT => Direction::RIGHT,
+        }
+    }
 }
 
 impl Hash for Direction {
