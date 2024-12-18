@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 use super::Coord;
 pub type Grid<T> = Vec<Vec<T>>;
 
@@ -11,6 +13,9 @@ pub trait GridOps<T> {
     where
         T: Clone;
     fn iter_coords(&self) -> GridCoordIterator;
+    fn print(&self)
+    where
+        T: Display;
 }
 
 impl<T> GridOps<T> for Grid<T> {
@@ -62,6 +67,18 @@ impl<T> GridOps<T> for Grid<T> {
         GridCoordIterator {
             current_pos: Coord { x: 0, y: 0 },
             dimensions: (rows, cols),
+        }
+    }
+
+    fn print(&self)
+    where
+        T: Display,
+    {
+        for row in self.iter() {
+            for cell in row.iter() {
+                print!("{}", cell);
+            }
+            println!();
         }
     }
 }
