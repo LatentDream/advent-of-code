@@ -23,7 +23,7 @@ pub fn solve() {
     println!("Part 1: {}", score)
 }
 
-pub fn traverse(problem: &Problem) -> i32 {
+fn traverse(problem: &Problem) -> i32 {
     // Explore the graph by putting weight on the step w/ a priority queue
 
     #[derive(Eq, PartialEq)]
@@ -31,6 +31,7 @@ pub fn traverse(problem: &Problem) -> i32 {
         coord: Coord,
         direction: Direction,
         priority: i32,
+        backtrack: Vec<Coord>,
     }
     impl Ord for State {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -49,11 +50,12 @@ pub fn traverse(problem: &Problem) -> i32 {
         coord: problem.start.0,
         direction: problem.start.1.clone(),
         priority: 0,
+        backtrack: vec![], // On a turn, wait to go forward before considering the move
     });
 
     while let Some(val) = queue.pop() {
-        let (coord, direction, priority) = (val.coord, val.direction, val.priority);
-        visited.insert(coord);
+        let (coord, direction, priority, mut backtrack) =
+            (val.coord, val.direction, val.priority, val.backtrack);
 
         if problem.end == coord {
             return -priority;
@@ -64,10 +66,18 @@ pub fn traverse(problem: &Problem) -> i32 {
                 if problem.grid.get_at(&coord_adj) == Some(&'.') {
                     let next_direction = direction_to(&coord, &coord_adj);
                     let score = priority - turns_needed(&direction, &next_direction) * 1000 - 1;
+                    if next_direction == direction {
+                        visited.insert(coord);
+                        visited.extend(backtrack.clone());
+                        backtrack = vec![]
+                    } else {
+                        backtrack.push(coord_adj);
+                    }
                     queue.push(State {
                         coord: coord_adj,
                         direction: next_direction,
                         priority: score,
+                        backtrack: backtrack.clone(),
                     });
                 }
             }
@@ -134,65 +144,3 @@ fn direction_to(from: &Coord, to: &Coord) -> Direction {
         Direction::UP
     }
 }
-
-// pub fn traverse(problem: &Problem) -> i32 {
-//     use std::collections::HashMap;
-//
-//     #[derive(Eq, PartialEq, Clone, Debug)]
-//     struct State {
-//         coord: Coord,
-//         direction: Direction,
-//         priority: i32,
-//     }
-//     impl Ord for State {
-//         fn cmp(&self, other: &Self) -> Ordering {
-//             other.priority.cmp(&self.priority)
-//         }
-//     }
-//     impl PartialOrd for State {
-//         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-//             Some(self.cmp(other))
-//         }
-//     }
-//
-//     let mut queue = BinaryHeap::new();
-//     let mut visited = HashSet::with_capacity(problem.grid.len() * problem.grid[0].len());
-//     let mut came_from = HashMap::new();
-//
-//     let start_state = State {
-//         coord: problem.start.0,
-//         direction: problem.start.1.clone(),
-//         priority: 0,
-//     };
-//     queue.push(start_state.clone());
-//
-//     while let Some(current) = queue.pop() {
-//         if visited.contains(&current.coord) {
-//             continue;
-//         }
-//         visited.insert(current.coord);
-//
-//         if problem.end == current.coord {
-//             print_path(&problem, &came_from, &current);
-//             return -current.priority;  // Negate because we used a min-heap
-//         }
-//
-//         for coord_adj in current.coord.adjacents() {
-//             if problem.grid.get_at(&coord_adj) == Some(&'.') {
-//                 let new_direction = direction_to(&current.coord, &coord_adj);
-//                 let turns = turns_needed(&current.direction, &current.coord, &coord_adj);
-//                 let new_priority = current.priority + turns * 1000 + 1;
-//                 let next = State {
-//                     coord: coord_adj,
-//                     direction: new_direction,
-//                     priority: new_priority,
-//                 };
-//                 if !visited.contains(&coord_adj) {
-//                     queue.push(next.clone());
-//                     came_from.insert(coord_adj, current.clone());
-//                 }
-//             }
-//         }
-//     }
-//     unreachable!()
-// }
