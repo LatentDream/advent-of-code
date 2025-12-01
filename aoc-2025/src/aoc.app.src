@@ -1,0 +1,8 @@
+{application, aoc,
+ [{description, "Advent of Code"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [kernel, stdlib]},
+  {mod, {main, []}},
+  {env, []}
+ ]}.

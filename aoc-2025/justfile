@@ -1,0 +1,5 @@
+build:
+    rebar3 compile
+
+run:
+    erl -noshell -pa _build/default/lib/aoc/ebin -eval "application:start(aoc), timer:sleep(100), init:stop()."
