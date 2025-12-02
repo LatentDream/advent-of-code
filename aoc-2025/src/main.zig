@@ -4,84 +4,78 @@ const aoc_2025 = @import("aoc_2025");
 const fs = std.fs;
 const print = std.debug.print;
 
-fn part1Logic(curr: i64, side: u8, number: usize) i64 {
-    if (side == 'L') {
-        var out: i64 = curr - @as(i64, @intCast(number));
-        while (out < 0) {
-            out += 100;
-        }
-        return out;
-    } else {
-        const num_i64 = @as(i64, @intCast(number));
-        return @mod(curr + num_i64, 100);
+fn countDigits(n: usize) usize {
+    if (n == 0) return 1;
+    var count: usize = 1;
+    var num = n;
+    while (num >= 10) {
+        count += 1;
+        num /= 10;
     }
-    return curr;
+    return count;
 }
 
-pub fn part1(lines: []const []const u8) !usize {
-    var curr: i64 = 50;
-    var nb_zero: usize = 0;
-
-    for (lines) |line| {
-        if (line.len < 2) continue;
-
-        const side: u8 = line[0];
-        const number_str = std.mem.trim(u8, line[1..], " ");
-        const number = try std.fmt.parseInt(usize, number_str, 10);
-
-        curr = part1Logic(curr, side, number);
-
-        if (curr == 0) {
-            nb_zero += 1;
-        }
+fn pow10(exp: usize) usize {
+    var result: usize = 1;
+    var i: usize = 0;
+    while (i < exp) : (i += 1) {
+        result *= 10;
     }
-
-    return nb_zero;
+    return result;
 }
 
-pub fn part2(lines: []const []const u8) !usize {
-    var prev: i64 = 50;
-    var nb_zero: usize = 0;
+fn isValid(number: usize) bool {
+    const digit_count = countDigits(number);
 
-    std.debug.print("Starting part2 with prev={}\n", .{prev});
-
-    for (lines) |line| {
-        if (line.len < 2) continue;
-        const side: u8 = line[0];
-        const number_str = std.mem.trim(u8, line[1..], " ");
-        const step = try std.fmt.parseInt(usize, number_str, 10);
-
-        const nb_rotation = step / 100;
-        const remainder = @mod(step, 100);
-        var next: i64 = 0;
-        if (side == 'L') {
-            next = prev - @as(i64, @intCast(remainder));
-        } else {
-            next = prev + @as(i64, @intCast(remainder));
-        }
-
-        nb_zero += nb_rotation;
-
-        if (next > 99 or (next == 0 and remainder > 0)) {
-            nb_zero += 1;
-        } else if (next < 0 and prev != 0) {
-            nb_zero += 1;
-        }
-
-        next = @mod(next, 100);
-        if (next < 0) {
-            next = 100 - next;
-        }
-
-        prev = next;
+    if (digit_count % 2 != 0) {
+        return false;
     }
 
-    std.debug.print("Final result: {}\n", .{nb_zero});
-    return nb_zero;
+    const half_digits = digit_count / 2;
+    const divisor = pow10(half_digits);
+
+    const left_half = number / divisor;
+    const right_half = number % divisor;
+
+    return left_half == right_half;
 }
 
-fn day1() !void {
-    const file = try fs.cwd().openFile("input.txt", .{});
+pub fn part1(ranges: []const []const u8) !usize {
+    var total: usize = 0;
+    for (ranges) |range| {
+        var it = std.mem.splitScalar(u8, range, '-');
+        var begin: usize = 0;
+        var end: usize = 0;
+        if (it.next()) |begin_str| {
+            const trimmed_begin = std.mem.trim(u8, begin_str, " \n\r\t");
+            begin = try std.fmt.parseInt(usize, trimmed_begin, 10);
+            print("Begin: {}\n", .{begin});
+        }
+        if (it.next()) |end_str| {
+            print("Endstr: '{s}'\n", .{end_str});
+            const trimmed_end = std.mem.trim(u8, end_str, " \n\r\t");
+            print("Trimmed endstr: '{s}'\n", .{trimmed_end});
+            end = try std.fmt.parseInt(usize, trimmed_end, 10);
+            print("End: {}\n", .{end});
+        }
+        std.debug.print("{} - {}\n", .{ begin, end });
+
+        while (begin <= end) {
+            if (isValid(begin)) {
+                total += begin;
+            }
+            begin += 1;
+        }
+    }
+    return total;
+}
+
+pub fn part2(_: []const []const u8) !usize {
+    return 1;
+}
+
+fn day2() !void {
+    const file = try fs.cwd().openFile("input/day2.txt", .{});
     defer file.close();
 
     var file_buffer: [4096]u8 = undefined;
@@ -100,165 +94,50 @@ fn day1() !void {
         lines.deinit(allocator);
     }
 
-    while (try reader.interface.takeDelimiter('\n')) |line| {
+    while (try reader.interface.takeDelimiter(',')) |line| {
         const owned_line = try allocator.dupe(u8, line);
         try lines.append(allocator, owned_line);
     }
 
     const result1 = try part1(lines.items);
-    print("Part 1 - Number of zero: {d}\n", .{result1});
+    print("Part 1: {d}\n", .{result1});
 
     const result2 = try part2(lines.items);
-    print("Part 2 - Number of zero: {d}\n", .{result2});
+    print("Part 2: {d}\n", .{result2});
 }
 
 pub fn main() !void {
-    try day1();
+    try day2();
 }
 
 test "processLines - full workflow" {
     const lines = [_][]const u8{
-        "L68",
-        "L30",
-        "R48",
-        "L5",
-        "R60",
-        "L55",
-        "L1",
-        "L99",
-        "R14",
-        "L82",
+        "11-22",                 "95-115",
+        "998-1012",              "1188511880-1188511890",
+        "222220-222224",         "1698522-1698528",
+        "446443-446449",         "38593856-38593862",
+        "565653-565659",         "824824821-824824827",
+        "2121212118-2121212124",
     };
 
     const result = part1(&lines);
-    try std.testing.expectEqual(3, result);
+    try std.testing.expectEqual(1227775554, result);
 }
 
-test "part2" {
-    const lines = [_][]const u8{
-        "L68",
-        "L30",
-        "R48",
-        "L5",
-        "R60",
-        "L55",
-        "L1",
-        "L99",
-        "R14",
-        "L82",
-    };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(6, result);
-}
-
-test "part2 - multiple pass" {
-    const lines = [_][]const u8{
-        "L1000",
-    };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(10, result);
-}
-
-test "part2 - return 2" {
-    const lines = [_][]const u8{
-        "R150",
-        "R50",
-    };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-test "part2 - return 2 - 2" {
-    const lines = [_][]const u8{ "L150", "L50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-test "part2 - return 2 - 3" {
-    const lines = [_][]const u8{ "L150", "R50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-test "part2 - return 2 - 4" {
-    const lines = [_][]const u8{ "R150", "L50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-
-test "part2 - return 1 - 1" {
-    const lines = [_][]const u8{ "R50", "L50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-test "part2 - return 1 - 2" {
-    const lines = [_][]const u8{ "L50", "R50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-test "part2 - return 1 - 3" {
-    const lines = [_][]const u8{ "L75", "R20" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-test "part2 - return 1 - 4" {
-    const lines = [_][]const u8{ "R75", "L20" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-
-test "Left ending on zero" {
-    const lines = [_][]const u8{ "L50", "R50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-
-test "Right ending on zero" {
-    const lines = [_][]const u8{ "R50", "R50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(1, result);
-}
-
-test "Basic pass to the left" {
-    const lines = [_][]const u8{"L200"};
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-
-test "Basic pass to the right" {
-    const lines = [_][]const u8{"R200"};
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-
-test "Extra pass Left landing on zero 0" {
-    const lines = [_][]const u8{ "R150", "L50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-
-test "Extra pass Left landing on zero" {
-    const lines = [_][]const u8{ "R150", "R50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
-
-test "Extra pass Right landing on zero" {
-    const lines = [_][]const u8{ "R150", "L50" };
-
-    const result = part2(&lines);
-    try std.testing.expectEqual(2, result);
-}
+// test "part2" {
+//     const lines = [_][]const u8{
+//         "L68",
+//         "L30",
+//         "R48",
+//         "L5",
+//         "R60",
+//         "L55",
+//         "L1",
+//         "L99",
+//         "R14",
+//         "L82",
+//     };
+//
+//     const result = part2(&lines);
+//     try std.testing.expectEqual(6, result);
+// }
