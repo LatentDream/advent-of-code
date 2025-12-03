@@ -24,7 +24,7 @@ fn pow10(exp: usize) usize {
     return result;
 }
 
-fn isValid(number: usize) bool {
+fn isValid_part1(number: usize) bool {
     const digit_count = countDigits(number);
 
     if (digit_count % 2 != 0) {
@@ -49,19 +49,14 @@ pub fn part1(ranges: []const []const u8) !usize {
         if (it.next()) |begin_str| {
             const trimmed_begin = std.mem.trim(u8, begin_str, " \n\r\t");
             begin = try std.fmt.parseInt(usize, trimmed_begin, 10);
-            print("Begin: {}\n", .{begin});
         }
         if (it.next()) |end_str| {
-            print("Endstr: '{s}'\n", .{end_str});
             const trimmed_end = std.mem.trim(u8, end_str, " \n\r\t");
-            print("Trimmed endstr: '{s}'\n", .{trimmed_end});
             end = try std.fmt.parseInt(usize, trimmed_end, 10);
-            print("End: {}\n", .{end});
         }
-        std.debug.print("{} - {}\n", .{ begin, end });
 
         while (begin <= end) {
-            if (isValid(begin)) {
+            if (isValid_part1(begin)) {
                 total += begin;
             }
             begin += 1;
@@ -70,8 +65,101 @@ pub fn part1(ranges: []const []const u8) !usize {
     return total;
 }
 
-pub fn part2(_: []const []const u8) !usize {
-    return 1;
+fn getFilter(allocator: std.mem.Allocator, firstHalf: []const u8) ![][]const u8 {
+    var filters: std.ArrayList([]const u8) = .empty;
+    defer filters.deinit(allocator);
+
+    // Generate progressive prefixes: "1", "12", "123"
+    for (1..firstHalf.len + 1) |i| {
+        const prefix = try allocator.dupe(u8, firstHalf[0..i]);
+        try filters.append(allocator, prefix);
+    }
+
+    return try allocator.dupe([]const u8, filters.items);
+}
+
+fn isRepeatingPattern(text: []const u8, pattern: []const u8) bool {
+    if (pattern.len == 0) return false;
+    if (text.len % pattern.len != 0) return false;
+    var pos: usize = 0;
+
+    while (pos + pattern.len <= text.len) {
+        if (!std.mem.eql(u8, text[pos .. pos + pattern.len], pattern)) {
+            return false;
+        }
+        pos += pattern.len;
+    }
+
+    if (pos < text.len) {
+        const remaining = text[pos..];
+        if (!std.mem.eql(u8, remaining, pattern[0..remaining.len])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+fn isValid_part2(allocator: std.mem.Allocator, number: usize) !bool {
+    var buffer: [32]u8 = undefined;
+    const number_str = try std.fmt.bufPrint(buffer[0..], "{}", .{number});
+
+    if (number_str.len < 2) {
+        return false;
+    }
+
+    const half_len = number_str.len / 2;
+    const left_half = number_str[0..half_len];
+    const right_half = number_str[half_len..];
+
+    const filters = try getFilter(allocator, left_half);
+    defer {
+        for (filters) |filter| {
+            allocator.free(filter);
+        }
+        allocator.free(filters);
+    }
+
+    for (filters) |filter| {
+        if (isRepeatingPattern(number_str, filter)) {
+            return true;
+        }
+    }
+
+    return std.mem.eql(u8, left_half, right_half);
+}
+
+pub fn part2(ranges: []const []const u8) !usize {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var total: usize = 0;
+    for (ranges) |range| {
+        var it = std.mem.splitScalar(u8, range, '-');
+        var begin: usize = 0;
+        var end: usize = 0;
+        if (it.next()) |begin_str| {
+            const trimmed_begin = std.mem.trim(u8, begin_str, " \n\r\t");
+            begin = try std.fmt.parseInt(usize, trimmed_begin, 10);
+        }
+        if (it.next()) |end_str| {
+            const trimmed_end = std.mem.trim(u8, end_str, " \n\r\t");
+            end = try std.fmt.parseInt(usize, trimmed_end, 10);
+        }
+
+        var valid_count: usize = 0;
+        while (begin <= end) {
+            const is_valid = try isValid_part2(allocator, begin);
+            if (is_valid) {
+                print("{}\n", .{begin});
+                total += begin;
+                valid_count += 1;
+            }
+            begin += 1;
+        }
+    }
+    return total;
 }
 
 fn day2() !void {
@@ -110,7 +198,7 @@ pub fn main() !void {
     try day2();
 }
 
-test "processLines - full workflow" {
+test "part1" {
     const lines = [_][]const u8{
         "11-22",                 "95-115",
         "998-1012",              "1188511880-1188511890",
@@ -124,20 +212,30 @@ test "processLines - full workflow" {
     try std.testing.expectEqual(1227775554, result);
 }
 
-// test "part2" {
-//     const lines = [_][]const u8{
-//         "L68",
-//         "L30",
-//         "R48",
-//         "L5",
-//         "R60",
-//         "L55",
-//         "L1",
-//         "L99",
-//         "R14",
-//         "L82",
-//     };
-//
-//     const result = part2(&lines);
-//     try std.testing.expectEqual(6, result);
-// }
+test "part2" {
+    const lines = [_][]const u8{
+        "11-22",                 "95-115",
+        "998-1012",              "1188511880-1188511890",
+        "222220-222224",         "1698522-1698528",
+        "446443-446449",         "38593856-38593862",
+        "565653-565659",         "824824821-824824827",
+        "2121212118-2121212124",
+    };
+
+    const result = part2(&lines);
+    try std.testing.expectEqual(4174379265, result);
+}
+
+test "part2 - should not match" {
+    const lines = [_][]const u8{ "1231233-1231234", "1113111-1113112", "3111111-3111112", "0-9", "269226922-269226923" };
+
+    const result = part2(&lines);
+    try std.testing.expectEqual(0, result);
+}
+
+test "part2 - should match" {
+    const lines = [_][]const u8{"824824824-824824825"};
+
+    const result = part2(&lines);
+    try std.testing.expectEqual(824824824, result);
+}
