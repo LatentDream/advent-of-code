@@ -1,5 +1,8 @@
 build:
-    zig build
-    
+    go build -o ./build/aoc ./main.go
+
 run:
-    ./zig-out/bin/aoc_2025
+    ./build/aoc
+
+test:
+    go test
