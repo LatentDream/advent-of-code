@@ -9,12 +9,14 @@ import (
 )
 
 func Day6(content string) {
-	inputs := day6Parse(content)
+	inputs := day6part1Parse(content)
 
-	totalPart1 := day6part1(inputs)
+	totalPart1 := calculate(inputs)
 	fmt.Printf("Part 1: %d\n", totalPart1)
 
-	totalPart2 := day6part2(inputs)
+	inputs = day6part2Parse(content)
+
+	totalPart2 := calculate(inputs)
 	fmt.Printf("Part 2: %d\n", totalPart2)
 }
 
@@ -30,7 +32,7 @@ type Input struct {
 	operator Operator
 }
 
-func day6Parse(content string) []Input {
+func day6part1Parse(content string) []Input {
 	inputs := []Input{}
 
 	lines := filterEmpty(strings.Split(content, "\n"))
@@ -60,7 +62,57 @@ func day6Parse(content string) []Input {
 	}
 
 	opLine := lines[nbNumber+1]
-	opLine = strings.Trim(opLine, " ")
+	parseOps(opLine, inputs)
+
+	return inputs
+}
+
+func day6part2Parse(content string) []Input {
+	inputs := []Input{}
+
+	lines := filterEmpty(strings.Split(content, "\n"))
+	nbNumber := len(lines) - 2
+	firstLine := lines[0]
+	inputIdx := 0
+
+	for i, char := range firstLine {
+		// Find first number
+		j := 0
+		for char == ' ' && j < nbNumber {
+			j++
+			char = rune(lines[j][i])
+		}
+		if char == ' ' {
+			inputIdx++
+			continue
+		}
+
+		// Build number until reach the end
+		numberChars := []rune{}
+		for j <= nbNumber && char != ' ' {
+			numberChars = append(numberChars, char)
+			char = rune(lines[j+1][i])
+			j++
+		}
+
+		if len(inputs) <= inputIdx {
+			inputs = append(inputs, Input{number: []int{}})
+		}
+		number, err := strconv.Atoi(string(numberChars))
+		if err != nil {
+			log.Fatalf("Failed to convert str to int %s", err)
+		}
+		inputs[inputIdx].number = append(inputs[inputIdx].number, number)
+	}
+
+	opLine := lines[nbNumber+1]
+	parseOps(opLine, inputs)
+
+	return inputs
+}
+
+func parseOps(line string, inputs []Input) {
+	opLine := strings.Trim(line, " ")
 	re := regexp.MustCompile(`\s+`)
 	opLine = re.ReplaceAllString(opLine, " ")
 	for i, op := range strings.Split(opLine, " ") {
@@ -70,8 +122,6 @@ func day6Parse(content string) []Input {
 			inputs[i].operator = plus
 		}
 	}
-
-	return inputs
 }
 
 func applyOperator(inputs []int, op Operator) int {
@@ -92,12 +142,12 @@ func applyOperator(inputs []int, op Operator) int {
 
 func printOperation(numbers []int, op Operator, result int) {
 	opSymbol := getOperatorSymbol(op)
-	
+
 	expr := fmt.Sprintf("%d", numbers[0])
 	for i := 1; i < len(numbers); i++ {
 		expr += fmt.Sprintf(" %s %d", opSymbol, numbers[i])
 	}
-	
+
 	fmt.Printf("%s = %d\n", expr, result)
 }
 
@@ -112,11 +162,10 @@ func getOperatorSymbol(op Operator) string {
 	}
 }
 
-func day6part1(inputs []Input) int {
+func calculate(inputs []Input) int {
 	total := 0
 	for _, input := range inputs {
 		eq := applyOperator(input.number, input.operator)
-		printOperation(input.number, input.operator, eq)
 		total += eq
 	}
 	return total
