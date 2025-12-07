@@ -1,4 +1,4 @@
-package main
+package days
 
 import "testing"
 
@@ -28,7 +28,7 @@ func Test_part1(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := part1(tt.banks)
+			got := day3part1(tt.banks)
 			if got != tt.want {
 				t.Errorf("part1() = %v, want %v", got, tt.want)
 			}
@@ -73,7 +73,7 @@ func Test_part2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := part2(tt.banks)
+			got := day3part2(tt.banks)
 			if got != tt.want {
 				t.Errorf("part2() = %v, want %v", got, tt.want)
 			}
