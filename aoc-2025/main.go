@@ -10,9 +10,9 @@ import (
 
 func main() {
 	fmt.Println("Advent of Code 2025")
-	content, err := os.ReadFile("input/day5.txt")
+	content, err := os.ReadFile("input/day6.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
-	days.Day5(string(content))
+	days.Day6(string(content))
 }
