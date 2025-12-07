@@ -5,4 +5,4 @@ run:
     ./build/aoc
 
 test:
-    go test ./days/day4_test.go ./days/day4.go ./days/utils.go
+    go test ./days/day5_test.go ./days/day5.go ./days/utils.go
